@@ -49,7 +49,7 @@ overflow: visible;
 </style>
 <style type="text/css" data-origin="pandoc">
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -341,43 +341,75 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cartographer)</span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(cartographer)</span></code></pre></div>
 <p>If you are often working with spatial data concerning a specific
 region, it might make sense to bundle up the map data along with its
 registration as an R package. This is true even if the data is only for
 internal use.</p>
-<p>For a general introduction to R packaging, see <a href="https://r-pkgs.org/">the R packaging book</a>. The <a href="https://r-pkgs.org/data.html">chapter on packaging data</a> in
-particular contains many relevant hints.</p>
-<div id="general-guidelines" class="section level2">
-<h2>General guidelines</h2>
-<p>Your source dataset needs to be transformed into a <code>{sf}</code>
-data frame. The <code>sf::read_sf()</code> can ingest many popular
-spatial data formats Make use of <code>usethis::use_data_raw()</code>
-and <code>usethis::use_data()</code> to prepare the data.</p>
+<p>To get started, you can use <code>usethis::create_package()</code> to
+generate the files you need for a new package.</p>
+<div id="obtaining-the-data" class="section level2">
+<h2>Obtaining the data</h2>
+<p>Start by calling <code>usethis::use_data_raw(&quot;my_map_name&quot;)</code> to
+create an R script where you can prepare your data. This helps you
+remember what you did in case you need to revisit the dataset later.</p>
+<p>You’ll need to download the map data that you’ll be using. There
+might be shapefiles published by a local jurisdiction, or you could look
+to packages like <code>{rnaturalearth}</code> that can provide
+general-purpose map data. Either way, you want to end up with an
+<code>{sf}</code> data frame. <code>sf::read_sf()</code> can read many
+common map data formats, and <code>sf::st_as_sf()</code> can convert
+other types of spatial data (including a data frame with latitude and
+longitude columns) into the right format.</p>
+<p>Once you have the data ready, call
+<code>usethis::use_data(&quot;my_map_name&quot;)</code> to add it to your
+package.</p>
+</div>
+<div id="registering-the-map" class="section level2">
+<h2>Registering the map</h2>
 <p>Your package will need to inform <code>{cartographer}</code> of the
 data by calling <code>register_map()</code>. This needs to happen after
 your package is loaded, so the <code>base::.onLoad()</code> hook is the
-appropriate place:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># in R/zzz.R</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>.onLoad <span class="ot">&lt;-</span> <span class="cf">function</span>(libname, pkgname) {</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>   cartographer<span class="sc">::</span><span class="fu">register_map</span>(</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>     <span class="st">&quot;my_package.uk&quot;</span>,</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>     <span class="at">data =</span> rnaturalearth<span class="sc">::</span><span class="fu">ne_states</span>(<span class="at">country =</span> <span class="st">&quot;united kingdom&quot;</span>, <span class="at">returnclass =</span> <span class="st">&quot;sf&quot;</span>),</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>     <span class="at">feature_column =</span> <span class="st">&quot;name_en&quot;</span>,</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>     <span class="at">outline =</span> rnaturalearth<span class="sc">::</span><span class="fu">ne_countries</span>(<span class="at">country =</span> <span class="st">&quot;united kingdom&quot;</span>, <span class="at">returnclass =</span> <span class="st">&quot;sf&quot;</span>, <span class="at">scale =</span> <span class="st">&quot;large&quot;</span>)</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>   )</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
-<p>The hook needs to come last when your package is evaluated, so the
-convention is to include it in a file called <code>R/zzz.R</code>, which
-is normally alphabetically last. The registration should at least
-include the map data and the name of the column that labels the
-features. It can also contain an alias mapping if there are alternative
-names or abbreviations for places that would plausibly appear in
-datasets.</p>
+appropriate place. This is often placed in a file named
+<code>&quot;zzz.R&quot;</code> so that it comes last alphabetically, but this is
+not a requirement. Use <code>usethis::use_r(&quot;zzz&quot;)</code> to create the
+file in your package.</p>
+<p>This example registers a map that is returned by
+<code>{rnaturalearth}</code> without any additional processing as
+described above:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># in R/zzz.R</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>.onLoad <span class="ot">&lt;-</span> <span class="cf">function</span>(libname, pkgname) {</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  cartographer<span class="sc">::</span><span class="fu">register_map</span>(</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>    <span class="st">&quot;my_package.uk&quot;</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>    <span class="at">data =</span> rnaturalearth<span class="sc">::</span><span class="fu">ne_states</span>(<span class="at">country =</span> <span class="st">&quot;united kingdom&quot;</span>, <span class="at">returnclass =</span> <span class="st">&quot;sf&quot;</span>),</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>    <span class="at">feature_column =</span> <span class="st">&quot;name_en&quot;</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>    <span class="at">outline =</span> rnaturalearth<span class="sc">::</span><span class="fu">ne_countries</span>(</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>      <span class="at">country =</span> <span class="st">&quot;united kingdom&quot;</span>, <span class="at">returnclass =</span> <span class="st">&quot;sf&quot;</span>, <span class="at">scale =</span> <span class="st">&quot;large&quot;</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>    )</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  )</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>}</span></code></pre></div>
+<p>The registration should at least include the map data and the name of
+the column that labels the features. It can also contain an alias
+mapping if there are alternative names or abbreviations for places that
+would plausibly appear in datasets.</p>
+</div>
+<div id="publishing-your-package" class="section level2">
+<h2>Publishing your package</h2>
+<p>At this point, you could install your package with
+<code>devtools::install()</code> and use it in other scripts on your
+machine.</p>
+<p>If you want to publish your package, you’ll need to do some extra
+work to clean it up. For a general introduction to R packaging, see <a href="https://r-pkgs.org/">the R packaging book</a>. The <a href="https://r-pkgs.org/data.html">chapter on packaging data</a> in
+particular contains many relevant hints. You’ll need to be careful that
+any data you’re using is licensed in a way that lets you share it, and
+that you properly acknowledge the copyright holder.</p>
+<p>See <code>{nswgeo}</code> for an example of a package that bundles
+some map data and relevant helpers, registering the maps with
+<code>{cartographer}</code>.</p>
 </div>
 <div id="reducing-file-size" class="section level2">
 <h2>Reducing file size</h2>
-<p>Spatial datasets can often be quite large as they contain high
+<p>Spatial datasets can often be quite large if they contain high
 resolution data. This can especially be a problem if attempting to
 commit the data to git or publish your package to CRAN (where 1 MB is
 the soft limit for the total compressed size of packages).</p>
@@ -385,33 +417,33 @@ the soft limit for the total compressed size of packages).</p>
 the geometry column and the name column remain.</p>
 <p>A useful pattern to reduce the size is to simplify the geometry to a
 specified resolution:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Preserve the original coordinate reference system.</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>crs_orig <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_crs</span>(high_res_sf_data_frame)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert to a more suitable CRS for manipulation. Note that the lat_ts argument</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># here is the &quot;latitude of true scale&quot;, i.e. the latitude at which scale will be</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># the least distorted. Adjust this based on your data.</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>crs_working <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_crs</span>(<span class="st">&quot;+proj=eqc +lat_ts=34 units=m&quot;</span>)</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Choose a resolution: features smaller than this scale will be lost.</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>tolerance_m <span class="ot">&lt;-</span> 1000L</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>low_res <span class="ot">&lt;-</span> high_res_sf_data_frame <span class="sc">|&gt;</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_transform</span>(crs_working) <span class="sc">|&gt;</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_simplify</span>(<span class="at">dTolerance =</span> tolerance_m) <span class="sc">|&gt;</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_transform</span>(crs_orig)</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare the size after reducing the resolution:</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="fu">object.size</span>(high_res_sf_data_frame)</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="fu">object.size</span>(low_res)</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Preserve the original coordinate reference system.</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>crs_orig <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_crs</span>(high_res_sf_data_frame)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># Convert to a more suitable CRS for manipulation. Note that the lat_ts argument</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co"># here is the &quot;latitude of true scale&quot;, i.e. the latitude at which scale will be</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co"># the least distorted. Adjust this based on your data.</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>crs_working <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_crs</span>(<span class="st">&quot;+proj=eqc +lat_ts=34 units=m&quot;</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co"># Choose a resolution: features smaller than this scale will be lost.</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>tolerance_m <span class="ot">&lt;-</span> <span class="dv">1000</span><span class="dt">L</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>low_res <span class="ot">&lt;-</span> high_res_sf_data_frame <span class="sc">|&gt;</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_transform</span>(crs_working) <span class="sc">|&gt;</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_simplify</span>(<span class="at">dTolerance =</span> tolerance_m) <span class="sc">|&gt;</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_transform</span>(crs_orig)</span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co"># Compare the size after reducing the resolution:</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="fu">object.size</span>(high_res_sf_data_frame)</span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="fu">object.size</span>(low_res)</span></code></pre></div>
 <p>See the documentation for the <a href="https://proj.org/operations/projections/eqc.html">equidistant
 cylindrical</a> projection for details of its configuration.</p>
 <p>You may also wish to remove holes in features:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>new_geom <span class="ot">&lt;-</span> geom <span class="sc">|&gt;</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_transform</span>(crs_working) <span class="sc">|&gt;</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_union</span>() <span class="sc">|&gt;</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  nngeo<span class="sc">::</span><span class="fu">st_remove_holes</span>() <span class="sc">|&gt;</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_make_valid</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>new_geom <span class="ot">&lt;-</span> geom <span class="sc">|&gt;</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_transform</span>(crs_working) <span class="sc">|&gt;</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_union</span>() <span class="sc">|&gt;</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  nngeo<span class="sc">::</span><span class="fu">st_remove_holes</span>() <span class="sc">|&gt;</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_make_valid</span>()</span></code></pre></div>
 </div>
 
 
